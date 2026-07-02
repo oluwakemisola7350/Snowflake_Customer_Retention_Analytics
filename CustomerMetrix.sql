@@ -1,6 +1,6 @@
 
 --==============================================================================--
-		-- Rolling 90-Day Churn And Revenue Leaked by Churned Customers --
+    -- Rolling 90-Day Churn And Revenue Leaked by Churned Customers --
 --==============================================================================--
 
 --=====================--
@@ -11,6 +11,7 @@ CREATE VIEW VW_CustomerMetrix AS (
 WITH CTE_CHURN AS (
 	    SELECT 
             Customer_ID,
+            SUM(UNIT_PRICE * QUANTITY) TOTAL_SALES,
             MAX(CAST(ORDER_DATE AS DATE)) LAST_ORDER_DATE,
             AVG(p.UNIT_PRICE * o.QUANTITY) CUSTOMER_AOV,
 	    CASE WHEN DATEDIFF(DAY,MAX(CAST(ORDER_DATE AS DATE)), GETDATE()) > 90 THEN 1 ELSE 0 END CHURN
@@ -50,11 +51,12 @@ WITH CTE_CHURN AS (
     CTE_DAYS_TO_DELIVER AS (
         SELECT
             o.CUSTOMER_ID,
-            AVG(DATEDIFF(DAY, o.ORDER_DATE, l.DELIVERY_DATE)) AS DAYS_TO_DELIVER
+            ROUND(AVG(DATEDIFF(DAY, o.ORDER_DATE, l.DELIVERY_DATE)),1) AS DAYS_TO_DELIVER
         FROM VW_LOGISTICSTAGING l
         LEFT JOIN VW_ORDERSTAGING o
         ON l.ORDER_ID = o.ORDER_ID
         GROUP BY o.CUSTOMER_ID
+        ORDER BY ROUND(AVG(DATEDIFF(DAY, o.ORDER_DATE, l.DELIVERY_DATE)),1)  
 )
 
 
@@ -76,11 +78,23 @@ WITH CTE_CHURN AS (
           c.SIGNUP_DATE,
           cc.LAST_ORDER_DATE,
           cc.CHURN,
+          cc.TOTAL_SALES,
           cc.CUSTOMER_AOV,
         CASE WHEN cc.CHURN = 1 THEN cc.CUSTOMER_AOV ELSE 0 END LEAKED_REVENUE,  
         CASE WHEN cc.CHURN = 0 THEN cc.CUSTOMER_AOV ELSE 0 END RETAINED_REVENUE,
           cdb.DAYS_TO_SECOND_PURCHASE,
-          dtd.DAYS_TO_DELIVER
+          dtd.DAYS_TO_DELIVER,
+        CASE 
+            WHEN dtd.DAYS_TO_DELIVER <= 7 THEN '< 7Days'
+            WHEN dtd.DAYS_TO_DELIVER <= 12 THEN '8-11Days'
+            WHEN dtd.DAYS_TO_DELIVER <= 16 THEN '< 16Days'
+        END DELIVERY_DAYS_GROUP,
+        CASE 
+            WHEN c.AGE <= 25 THEN '< 25'
+            WHEN c.AGE <= 35 THEN '26-35'
+            WHEN c.AGE <= 50 THEN '36-50'
+            WHEN c.AGE <= 77 THEN '56-77'
+        END AGE_GROUP
   FROM VW_CUSTOMERSTAGING c
   LEFT JOIN CTE_CHURN cc
   ON cc.CUSTOMER_ID = c.CUSTOMER_ID 
