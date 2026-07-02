@@ -1,0 +1,10 @@
+--============================================--
+    -- Data Quality Audit And Profiling --
+--============================================--
+
+SELECT
+    SUM(CASE WHEN PRODUCT_ID IS NULL THEN 1 ELSE 0 END) PRODUCT_ID,
+    SUM(CASE WHEN PRODUCT_NAME IS NULL THEN 1 ELSE 0 END) PRODUCT_NAME,
+    SUM(CASE WHEN CATEGORY IS NULL THEN 1 ELSE 0 END) CATEGORY,
+    SUM(CASE WHEN UNIT_PRICE IS NULL THEN 1 ELSE 0 END) UNIT_PRICE
+FROM PRODUCTS_DATASET;
